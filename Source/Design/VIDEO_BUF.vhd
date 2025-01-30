@@ -77,7 +77,11 @@ entity VIDEO_BUF is
 		sw_time_out				: in std_logic_vector (31 downto 0);
 		min_frame_sw_detected	: in std_logic_vector (10 downto 0);
 		upsamp_factor			: in std_logic_vector (3 downto 0);
-		black_video_buf_out		: out std_logic_vector (3 downto 0)
+		black_video_buf_out		: out std_logic_vector (3 downto 0);
+		rssi_acc_0				: out std_logic_vector(11 downto 0);
+		rssi_acc_1				: out std_logic_vector(11 downto 0);
+		rssi_acc_2				: out std_logic_vector(11 downto 0);
+		rssi_acc_3				: out std_logic_vector(11 downto 0)
    );
 end VIDEO_BUF;
 
@@ -187,6 +191,19 @@ component linspace is
 	);
 end component;
 
+COMPONENT rssi_fifo
+  PORT (
+    clk : IN STD_LOGIC;
+    din : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    wr_en : IN STD_LOGIC;
+    rd_en : IN STD_LOGIC;
+    dout : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    full : OUT STD_LOGIC;
+    empty : OUT STD_LOGIC;
+    data_count : OUT STD_LOGIC_VECTOR(3 DOWNTO 0)
+  );
+END COMPONENT;
+
 signal WE						: std_logic_vector(NUM_OF_CHANNELS-1 downto 0);
 signal RGBCounter				: stdl2_arr(0 to NUM_OF_CHANNELS-1);
 signal color_keep				: stdl4_arr(0 to NUM_OF_CHANNELS-1);
@@ -232,11 +249,19 @@ signal video_buf_black_we	: std_logic_vector(3 downto 0);
 
 signal video_buf_black_addr	: stdl13_arr(0 to NUM_OF_CHANNELS-1);
 signal WriteAddress			: stdl13_arr(0 to NUM_OF_CHANNELS-1);
-signal video_buf_wr_addr		: stdl13_arr(0 to NUM_OF_CHANNELS-1);
+signal video_buf_wr_addr	: stdl13_arr(0 to NUM_OF_CHANNELS-1);
 
 signal video_buf_black_din	: stdl12_arr(0 to NUM_OF_CHANNELS-1);
 signal DataToWrite			: stdl12_arr(0 to NUM_OF_CHANNELS-1);
 signal video_buf_din		: stdl12_arr(0 to NUM_OF_CHANNELS-1);
+signal rssi					: stdl8_arr(0 to NUM_OF_CHANNELS-1);
+signal last_rssi			: stdl12_arr(0 to NUM_OF_CHANNELS-1);
+signal rssi_acc				: stdl12_arr(0 to NUM_OF_CHANNELS-1);
+signal rssi_fifo_dout 		: stdl8_arr(0 to NUM_OF_CHANNELS-1);
+signal rssi_fifo_data_count	: stdl4_arr(0 to NUM_OF_CHANNELS-1);
+signal rssi_fifo_wr_en		: std_logic_vector(NUM_OF_CHANNELS-1 downto 0);
+signal rssi_fifo_rd_en		: std_logic_vector(NUM_OF_CHANNELS-1 downto 0);
+signal rssi_fifo_full		: std_logic_vector(NUM_OF_CHANNELS-1 downto 0);
 
 type video_buf_blacking_state_type is
 (
@@ -345,6 +370,13 @@ attribute MARK_DEBUG of video_buf_full_addrb		: signal is "TRUE";
 attribute MARK_DEBUG of video_buf_full_din			: signal is "TRUE";
 attribute MARK_DEBUG of video_buf_full_douta		: signal is "TRUE";
 attribute MARK_DEBUG of video_buf_full_doutb		: signal is "TRUE";
+attribute MARK_DEBUG of rssi		: signal is "TRUE";
+attribute MARK_DEBUG of last_rssi		: signal is "TRUE";
+attribute MARK_DEBUG of rssi_acc		: signal is "TRUE";
+attribute MARK_DEBUG of rssi_fifo_wr_en		: signal is "TRUE";
+attribute MARK_DEBUG of rssi_fifo_rd_en		: signal is "TRUE";
+attribute MARK_DEBUG of rssi_fifo_dout		: signal is "TRUE";
+attribute MARK_DEBUG of rssi_fifo_full		: signal is "TRUE";
 
 begin
 
@@ -378,15 +410,19 @@ write_data_gen : for i in 0 to NUM_OF_CHANNELS-1 generate
 	Write : process (W_CLK) begin
 		if rising_edge (W_CLK) then
 			if W_RESET = '1' then
-				WriteAddress(i)              <= (others => '1');
-				line_start_addr_temp(i)      <= (others => '0');
-				DataToWrite(i)               <= (others => '0');
-				WE(i)                        <= '0';
-				RGBCounter(i)                <= (others => '0');
-				color_keep(i)                <= (others => '0');
-				line_bytes_cnt(i)            <= (others => '0');
-				rom_out_cnt(i)               <= '0';
-				video_buf_write_state(i)     <= wait_for_sw; 
+				WriteAddress(i)					<= (others => '1');
+				line_start_addr_temp(i)			<= (others => '0');
+				DataToWrite(i)					<= (others => '0');
+				WE(i)							<= '0';
+				RGBCounter(i)					<= (others => '0');
+				color_keep(i)					<= (others => '0');
+				line_bytes_cnt(i)				<= (others => '0');
+				rom_out_cnt(i)					<= '0';
+				rssi(i)							<= (others => '0');
+				rssi_fifo_wr_en(i)				<= '0';
+				rssi_fifo_rd_en(i)				<= '0';
+				rssi_acc(i)						<= (others => '0');
+				video_buf_write_state(i)		<= wait_for_sw; 
 			else
 				case(video_buf_write_state(i)) is
 					when wait_for_sw =>
@@ -441,8 +477,9 @@ write_data_gen : for i in 0 to NUM_OF_CHANNELS-1 generate
 						end if ;
 
 					when increment_addr =>
-						WE(i)                                    <= '0';
-						if line_bytes_cnt(i) = PAYLOAD_LENGTH then
+						WE(i)                                    		<= '0';
+						if (line_bytes_cnt(i) = PAYLOAD_LENGTH) then
+							rssi_fifo_rd_en(i)							<= rssi_fifo_full(i);
 							video_buf_write_state(i)                	<= read_packet_padding;
 						else
 							WriteAddress(i)								<= WriteAddress(i) + 1;
@@ -450,19 +487,49 @@ write_data_gen : for i in 0 to NUM_OF_CHANNELS-1 generate
 						end if;
 
 					when read_packet_padding =>
+						
 						if DATA_VALID(i) = '1' then
-							if line_bytes_cnt(i) = TOTAL_PACKET_LEN - 1 then
+							if (line_bytes_cnt(i) = TOTAL_PACKET_LEN - 1) then
 								line_bytes_cnt(i)						<= (others => '0');
 								video_buf_write_state(i)				<= read_packet_start_addr;
+							elsif (line_bytes_cnt(i) = PAYLOAD_LENGTH) then
+								line_bytes_cnt(i)						<= line_bytes_cnt(i) + 1;
+								rssi(i)									<= DATA_IN(i);
+								rssi_fifo_wr_en(i)						<= not rssi_fifo_full(i);
+								rssi_acc(i)								<= rssi_acc(i) + (x"0" & DATA_IN(i)) - last_rssi(i);
 							else
 								line_bytes_cnt(i)						<= line_bytes_cnt(i) + 1;
+								
 							end if;
+						else
+							rssi_fifo_rd_en(i)							<= '0';	
+							rssi_fifo_wr_en(i)							<= '0';
 						end if;
 				end case ;
 			end if;
 		end if;
 	end process;
+
+	-- last_rssi(i)		<= (x"0" & rssi_fifo_dout(i)) when rssi_fifo_data_count(i) = x"f" else x"000";
+	last_rssi(i)		<= (x"0" & rssi_fifo_dout(i));
+
+	rssi_fifo_i : rssi_fifo
+  		PORT MAP (
+			clk			=> W_CLK,
+			din			=> rssi(i),
+			wr_en		=> rssi_fifo_wr_en(i),
+			rd_en		=> rssi_fifo_rd_en(i),
+			dout		=> rssi_fifo_dout(i),
+			full		=> rssi_fifo_full(i),
+			empty		=> open,
+			data_count	=> open
+		);
 end generate write_data_gen;
+
+rssi_acc_0		<= rssi_acc(0);
+rssi_acc_1		<= rssi_acc(1);
+rssi_acc_2		<= rssi_acc(2);
+rssi_acc_3		<= rssi_acc(3);
 
 process (W_CLK) begin
 	if rising_edge (W_CLK) then

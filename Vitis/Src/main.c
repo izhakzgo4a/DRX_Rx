@@ -32,6 +32,10 @@ XGpio CC1200_2_GPIO;
 XGpio CC1200_3_GPIO;
 XGpio CC1200_READY;
 XGpio CC1200_FIFO_TH;
+XGpio CC1200_RSSI_0;
+XGpio CC1200_RSSI_1;
+XGpio CC1200_RSSI_2;
+XGpio CC1200_RSSI_3;
 
 XGpio LEDS;
 XGpio MIN_FRAME_SW_DETECTED;
@@ -56,6 +60,10 @@ typedef struct
 	XGpio *CC1200_3_GPIO;
 	XGpio *CC1200_READY;
 	XGpio *CC1200_FIFO_TH;
+	XGpio *CC1200_RSSI_0;
+	XGpio *CC1200_RSSI_1;
+	XGpio *CC1200_RSSI_2;
+	XGpio *CC1200_RSSI_3;
 }ZQ_CC1200;
 
 int ZQ_gpio_init(ZQ_CC1200 CC1200);
@@ -109,6 +117,10 @@ int main (void)
 	CC1200.CC1200_3_GPIO = &CC1200_3_GPIO;
 	CC1200.CC1200_READY = &CC1200_READY;
 	CC1200.CC1200_FIFO_TH = &CC1200_FIFO_TH;
+	CC1200.CC1200_RSSI_0 = &CC1200_RSSI_0;
+	CC1200.CC1200_RSSI_1 = &CC1200_RSSI_1;
+	CC1200.CC1200_RSSI_2 = &CC1200_RSSI_2;
+	CC1200.CC1200_RSSI_3 = &CC1200_RSSI_3;
 
 	GpioStatus = ZQ_gpio_init(CC1200);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
@@ -304,81 +316,98 @@ int ZQ_gpio_init(ZQ_CC1200 CC1200)
 	GpioStatus = XGpio_Initialize(&LEDS, XPAR_GPIO_0_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
+	/* Initialize the Gpio CC1200_FIFO_TH driver */
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_FIFO_TH, XPAR_GPIO_1_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
 	/* Initialize the Gpio ZQ_CC1200_0_GPIO driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_0_GPIO , XPAR_GPIO_1_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_0_GPIO , XPAR_GPIO_2_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio ZQ_CC1200_1_GPIO driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_1_GPIO, XPAR_GPIO_2_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_1_GPIO, XPAR_GPIO_3_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio ZQ_CC1200_2_GPIO driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_2_GPIO, XPAR_GPIO_3_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_2_GPIO, XPAR_GPIO_4_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio ZQ_CC1200_3_GPIO driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_3_GPIO, XPAR_GPIO_4_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_3_GPIO, XPAR_GPIO_5_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_READY driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_READY, XPAR_GPIO_5_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_READY, XPAR_GPIO_6_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio ZQ_REG_CS driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_CS, XPAR_GPIO_6_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_CS, XPAR_GPIO_7_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_IN_0 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_0, XPAR_GPIO_7_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_0, XPAR_GPIO_8_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_IN_1 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_1, XPAR_GPIO_8_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_1, XPAR_GPIO_9_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_IN_2 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_2, XPAR_GPIO_9_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_2, XPAR_GPIO_10_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_IN_3 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_3, XPAR_GPIO_10_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_IN_3, XPAR_GPIO_11_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_OUT_0 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_0, XPAR_GPIO_11_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_0, XPAR_GPIO_12_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_OUT_1 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_1, XPAR_GPIO_12_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_1, XPAR_GPIO_13_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_OUT_2 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_2, XPAR_GPIO_13_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_2, XPAR_GPIO_14_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio CC1200_REG_OUT_3 driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_3, XPAR_GPIO_14_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_REG_OUT_3, XPAR_GPIO_15_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio ZQ_CC1200_RST driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_RST, XPAR_GPIO_15_DEVICE_ID);
-	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
-
-	/* Initialize the Gpio CC1200_FIFO_TH driver */
-	GpioStatus = XGpio_Initialize(CC1200.CC1200_FIFO_TH, XPAR_GPIO_16_DEVICE_ID);
-	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
-
-	/* Initialize the Gpio MIN_FRAME_SW_DETECTED driver */
-	GpioStatus = XGpio_Initialize(&MIN_FRAME_SW_DETECTED, XPAR_GPIO_17_DEVICE_ID);
-	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
-
-	/* Initialize the Gpio SW_TIME_OUT driver */
-	GpioStatus = XGpio_Initialize(&SW_TIME_OUT, XPAR_GPIO_18_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_RST, XPAR_GPIO_16_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
 
 	/* Initialize the Gpio UPSAMPLE_FACTOR driver */
-	GpioStatus = XGpio_Initialize(&UPSAMPLE_FACTOR, XPAR_GPIO_19_DEVICE_ID);
+	GpioStatus = XGpio_Initialize(&UPSAMPLE_FACTOR, XPAR_GPIO_17_DEVICE_ID);
 	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio MIN_FRAME_SW_DETECTED driver */
+	GpioStatus = XGpio_Initialize(&MIN_FRAME_SW_DETECTED, XPAR_GPIO_18_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio SW_TIME_OUT driver */
+	GpioStatus = XGpio_Initialize(&SW_TIME_OUT, XPAR_GPIO_19_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio CC1200_RSSI_0 driver */
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_RSSI_0, XPAR_GPIO_20_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio CC1200_RSSI_1 driver */
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_RSSI_1, XPAR_GPIO_21_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio CC1200_RSSI_2 driver */
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_RSSI_2, XPAR_GPIO_22_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
+	/* Initialize the Gpio CC1200_RSSI_3 driver */
+	GpioStatus = XGpio_Initialize(CC1200.CC1200_RSSI_3, XPAR_GPIO_23_DEVICE_ID);
+	if (GpioStatus != XST_SUCCESS) return XST_FAILURE;
+
 
 	return XST_SUCCESS;
 }

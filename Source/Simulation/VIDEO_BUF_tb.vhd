@@ -110,7 +110,13 @@ COMPONENT VIDEO_BUF is
 		VSYNC_OUT               : out STD_LOGIC;
 
 		sw_time_out				: in STD_LOGIC_VECTOR (31 downto 0);
-		min_frame_sw_detected	: in STD_LOGIC_VECTOR (10 downto 0)
+		min_frame_sw_detected	: in STD_LOGIC_VECTOR (10 downto 0);
+		upsamp_factor			: in std_logic_vector(3 downto 0);
+		black_video_buf_out		: out std_logic_vector(3 downto 0);
+		rssi_acc_0				: out std_logic_vector(11 downto 0);
+		rssi_acc_1				: out std_logic_vector(11 downto 0);
+		rssi_acc_2				: out std_logic_vector(11 downto 0);
+		rssi_acc_3				: out std_logic_vector(11 downto 0)
 	);
 end COMPONENT;
 
@@ -197,42 +203,42 @@ R_CLK <= not R_CLK after 20 ns;
 RESET <= '0' after 200ns;
 vtc_active_video <= '1' after 5ms;
 
-stimulus : process begin
-	SW_DETECTED_0	<= '0';
-	SW_DETECTED_1	<= '0';
-	SW_DETECTED_2	<= '0';
-	SW_DETECTED_3	<= '0';
-	ZQ_REG_IN		<= x"000000";
-	wait until RESET = '0';
-	wait for 50us;
+-- stimulus : process begin
+-- 	SW_DETECTED_0	<= '0';
+-- 	SW_DETECTED_1	<= '0';
+-- 	SW_DETECTED_2	<= '0';
+-- 	SW_DETECTED_3	<= '0';
+-- 	ZQ_REG_IN		<= x"000000";
+-- 	wait until RESET = '0';
+-- 	wait for 50us;
 
-	wait until W_CLK = '1';
-	for j in 0 to 10 loop
-		SW_DETECTED_0	<= '1';
-		-- SW_DETECTED_3	<= '1';
-		for i in 0 to 10 loop
-			ZQ_REG_IN 	<= x"3d0000";
-			ZQ_REG_CS 	<= '1';
-			wait until W_CLK = '1';
-			ZQ_REG_CS 	<= '0';
-			wait for 2us;
-			ZQ_REG_IN 	<= x"ff0000";
-			ZQ_REG_CS 	<= '1';
-			wait until W_CLK = '1';
-			ZQ_REG_CS 	<= '0';
-			wait for 8us;
-		end loop;
-		wait for 20us;
-		SW_DETECTED_0	<= '0';
+-- 	wait until W_CLK = '1';
+-- 	for j in 0 to 10 loop
+-- 		SW_DETECTED_0	<= '1';
+-- 		-- SW_DETECTED_3	<= '1';
+-- 		for i in 0 to 10 loop
+-- 			ZQ_REG_IN 	<= x"3d0000";
+-- 			ZQ_REG_CS 	<= '1';
+-- 			wait until W_CLK = '1';
+-- 			ZQ_REG_CS 	<= '0';
+-- 			wait for 2us;
+-- 			ZQ_REG_IN 	<= x"ff0000";
+-- 			ZQ_REG_CS 	<= '1';
+-- 			wait until W_CLK = '1';
+-- 			ZQ_REG_CS 	<= '0';
+-- 			wait for 8us;
+-- 		end loop;
+-- 		wait for 20us;
+-- 		SW_DETECTED_0	<= '0';
 		
-		wait for 20us;
-	end loop;
-	-- wait until W_CLK = '1';
-	-- SW_DETECTED_3	<= '1';
-	-- wait until W_CLK = '1';
-	-- SW_DETECTED_3	<= '0';
+-- 		wait for 20us;
+-- 	end loop;
+-- 	-- wait until W_CLK = '1';
+-- 	-- SW_DETECTED_3	<= '1';
+-- 	-- wait until W_CLK = '1';
+-- 	-- SW_DETECTED_3	<= '0';
 	
-end process stimulus;
+-- end process stimulus;
 
 process(W_CLK, RESET) begin
 	if RESET = '1' then
@@ -250,64 +256,95 @@ CC1200_CLK_fall		<= CC1200_CLK_s and not(CC1200_CLK);
 CC1200_CS_rise		<= CC1200_CS and not(CC1200_CS_s);
 CC1200_CS_fall		<= CC1200_CS_s and not(CC1200_CS);
 
-SPI: process(W_CLK, reset) 
-	variable j : integer := 0;
-	begin
-	if rising_edge(W_CLK) then
-		if reset = '1' then
-			spi_cnt					<= (others => '0');
-			spi_sr					<= (others => '1');
-			spi_bytes_cnt			<= (others => '0');
-			spi_state				<= idle;
-		else
-			case spi_state is
-				when idle =>
-					if (CC1200_CS_fall = '1') then		
-						spi_state				<= read_data;
-						spi_sr					<= (others => '0');
-					else			
-						spi_cnt					<= (others => '0');	
-						spi_sr					<= (others => '1');	
-					end if;
+-- SPI: process(W_CLK, reset) 
+-- 	variable j : integer := 0;
+-- 	begin
+-- 	if rising_edge(W_CLK) then
+-- 		if reset = '1' then
+-- 			spi_cnt					<= (others => '0');
+-- 			spi_sr					<= (others => '1');
+-- 			spi_bytes_cnt			<= (others => '0');
+-- 			spi_state				<= idle;
+-- 		else
+-- 			case spi_state is
+-- 				when idle =>
+-- 					if (CC1200_CS_fall = '1') then		
+-- 						spi_state				<= read_data;
+-- 						spi_sr					<= (others => '0');
+-- 					else			
+-- 						spi_cnt					<= (others => '0');	
+-- 						spi_sr					<= (others => '1');	
+-- 					end if;
 					
-				when read_data =>
-					if (CC1200_CLK_rise = '1') then		
-						if (spi_cnt = 7) then		
-							if ((spi_sr(spi_sr'high-1 downto 0) & CC1200_MOSI = x"ff")) then		
-								spi_cnt			<= (others => '0');
-								spi_sr			<= std_logic_vector(to_unsigned(j, spi_sr'length));
-								spi_state		<= send_data;
-							end if;
-						else			
-							spi_cnt				<= spi_cnt + 1;
-							spi_sr				<= spi_sr(spi_sr'high-1 downto 0) & CC1200_MOSI;
-						end if;
-					end if;
+-- 				when read_data =>
+-- 					if (CC1200_CLK_rise = '1') then		
+-- 						if (spi_cnt = 7) then		
+-- 							if ((spi_sr(spi_sr'high-1 downto 0) & CC1200_MOSI = x"ff")) then		
+-- 								spi_cnt			<= (others => '0');
+-- 								spi_sr			<= std_logic_vector(to_unsigned(j, spi_sr'length));
+-- 								spi_state		<= send_data;
+-- 							end if;
+-- 						else			
+-- 							spi_cnt				<= spi_cnt + 1;
+-- 							spi_sr				<= spi_sr(spi_sr'high-1 downto 0) & CC1200_MOSI;
+-- 						end if;
+-- 					end if;
 			
-				when send_data =>
-					if (CC1200_CLK_fall = '1') then		
-						if (spi_cnt = 7) then
-							if (spi_bytes_cnt = CC1200_FIFO_TH - 1) then
-								spi_bytes_cnt		<= (others => '0');
-								spi_state			<= idle;
-							else
-								spi_cnt				<= (others => '0');
-								spi_bytes_cnt		<= spi_bytes_cnt + 1;
-								j					:= j + 1;
-								spi_sr				<= std_logic_vector(to_unsigned(j, spi_sr'length));
-							end if;
-						else			
-							spi_cnt					<= spi_cnt + 1;	
-							spi_sr					<= spi_sr(spi_sr'high-1 downto 0) & '0';	
-						end if;
-					end if;
+-- 				when send_data =>
+-- 					if (CC1200_CLK_fall = '1') then		
+-- 						if (spi_cnt = 7) then
+-- 							if (spi_bytes_cnt = CC1200_FIFO_TH - 1) then
+-- 								spi_bytes_cnt		<= (others => '0');
+-- 								spi_state			<= idle;
+-- 							else
+-- 								spi_cnt				<= (others => '0');
+-- 								spi_bytes_cnt		<= spi_bytes_cnt + 1;
+-- 								j					:= j + 1;
+-- 								spi_sr				<= std_logic_vector(to_unsigned(j, spi_sr'length));
+-- 							end if;
+-- 						else			
+-- 							spi_cnt					<= spi_cnt + 1;	
+-- 							spi_sr					<= spi_sr(spi_sr'high-1 downto 0) & '0';	
+-- 						end if;
+-- 					end if;
 			
-			end case;
-		end if;
-	end if;
-end process;
+-- 			end case;
+-- 		end if;
+-- 	end if;
+-- end process;
 
 CC1200_MISO				<= spi_sr(spi_sr'high);
+
+stimulus : process begin
+	DATA_IN_0		<= (others => '0');
+	DATA_VALID_0	<= '0';
+	SW_DETECTED_0	<= '0';
+	wait until RESET = '0';
+	wait for 50us;
+
+	wait until W_CLK = '1';
+	for j in 0 to 20 loop
+		SW_DETECTED_0	<= '1';
+		-- SW_DETECTED_3	<= '1';
+		for i in 0 to 66 loop
+			DATA_IN_0		<= std_logic_vector(to_unsigned(i, DATA_IN_0'length));
+			DATA_VALID_0	<= '1';
+			wait until W_CLK = '1';
+			DATA_VALID_0	<= '0';
+			wait for 1us;
+		end loop;
+		wait for 20us;
+		SW_DETECTED_0	<= '0';
+		
+		wait for 20us;
+	end loop;
+	-- wait until W_CLK = '1';
+	-- SW_DETECTED_3	<= '1';
+	-- wait until W_CLK = '1';
+	-- SW_DETECTED_3	<= '0';
+	
+end process stimulus;
+
 
 uut: VIDEO_BUF PORT MAP (
     W_CLK                	=> W_CLK,
@@ -342,7 +379,13 @@ uut: VIDEO_BUF PORT MAP (
 	HSYNC_OUT            	=> open,
 	VSYNC_OUT            	=> open,
 	sw_time_out				=> std_logic_vector(to_unsigned(480*PACKET_TIME, 32)),
-	min_frame_sw_detected	=> std_logic_vector(to_unsigned(200, 11))
+	min_frame_sw_detected	=> std_logic_vector(to_unsigned(200, 11)),
+	upsamp_factor			=> std_logic_vector(to_unsigned(4, 4)),
+	black_video_buf_out		=> open,
+	rssi_acc_0				=> open,
+	rssi_acc_1				=> open,
+	rssi_acc_2				=> open,
+	rssi_acc_3				=> open
 );
 
 
@@ -357,8 +400,8 @@ PORT MAP
 	GET_DATA_FROM_RAM 		=> GET_DATA_FROM_RAM,
 	RAM_DATA_IN				=> x"000000",
 	ram_data_in_valid		=> '0',
-	cc1200_data_out			=> DATA_IN_0,
-	cc1200_data_out_valid	=> DATA_VALID_0,
+	cc1200_data_out			=> open,
+	cc1200_data_out_valid	=> open,
 	CC1200_CS				=> CC1200_CS,
 	CC1200_CLK				=> CC1200_CLK,
 	CC1200_MOSI				=> CC1200_MOSI,
