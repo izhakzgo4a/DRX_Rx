@@ -598,6 +598,108 @@ proc create_hier_cell_HEIR_CC1200_RST { parentCell nameHier } {
   current_bd_instance $oldCurInst
 }
 
+# Hierarchical cell: HEIR_CC1200_RSSI
+proc create_hier_cell_HEIR_CC1200_RSSI { parentCell nameHier } {
+
+  variable script_folder
+
+  if { $parentCell eq "" || $nameHier eq "" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2092 -severity "ERROR" "create_hier_cell_HEIR_CC1200_RSSI() - Empty argument(s)!"}
+     return
+  }
+
+  # Get object for parentCell
+  set parentObj [get_bd_cells $parentCell]
+  if { $parentObj == "" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2090 -severity "ERROR" "Unable to find parent cell <$parentCell>!"}
+     return
+  }
+
+  # Make sure parentObj is hier blk
+  set parentType [get_property TYPE $parentObj]
+  if { $parentType ne "hier" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2091 -severity "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
+     return
+  }
+
+  # Save current instance; Restore later
+  set oldCurInst [current_bd_instance .]
+
+  # Set parent object as current
+  current_bd_instance $parentObj
+
+  # Create cell and set as current instance
+  set hier_obj [create_bd_cell -type hier $nameHier]
+  current_bd_instance $hier_obj
+
+  # Create interface pins
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI1
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI2
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI3
+
+
+  # Create pins
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i1
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i2
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i3
+  create_bd_pin -dir I -type clk s_axi_aclk
+  create_bd_pin -dir I -type rst s_axi_aresetn
+
+  # Create instance: CC1200_RSSI_0, and set properties
+  set CC1200_RSSI_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 CC1200_RSSI_0 ]
+  set_property -dict [ list \
+   CONFIG.C_ALL_INPUTS {1} \
+   CONFIG.C_ALL_OUTPUTS {0} \
+   CONFIG.C_GPIO_WIDTH {12} \
+ ] $CC1200_RSSI_0
+
+  # Create instance: CC1200_RSSI_1, and set properties
+  set CC1200_RSSI_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 CC1200_RSSI_1 ]
+  set_property -dict [ list \
+   CONFIG.C_ALL_INPUTS {1} \
+   CONFIG.C_ALL_OUTPUTS {0} \
+   CONFIG.C_GPIO_WIDTH {12} \
+ ] $CC1200_RSSI_1
+
+  # Create instance: CC1200_RSSI_2, and set properties
+  set CC1200_RSSI_2 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 CC1200_RSSI_2 ]
+  set_property -dict [ list \
+   CONFIG.C_ALL_INPUTS {1} \
+   CONFIG.C_ALL_OUTPUTS {0} \
+   CONFIG.C_GPIO_WIDTH {12} \
+ ] $CC1200_RSSI_2
+
+  # Create instance: CC1200_RSSI_3, and set properties
+  set CC1200_RSSI_3 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 CC1200_RSSI_3 ]
+  set_property -dict [ list \
+   CONFIG.C_ALL_INPUTS {1} \
+   CONFIG.C_ALL_OUTPUTS {0} \
+   CONFIG.C_GPIO_WIDTH {12} \
+ ] $CC1200_RSSI_3
+
+  # Create interface connections
+  connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins S_AXI] [get_bd_intf_pins CC1200_RSSI_0/S_AXI]
+  connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins S_AXI1] [get_bd_intf_pins CC1200_RSSI_1/S_AXI]
+  connect_bd_intf_net -intf_net Conn3 [get_bd_intf_pins S_AXI2] [get_bd_intf_pins CC1200_RSSI_2/S_AXI]
+  connect_bd_intf_net -intf_net Conn4 [get_bd_intf_pins S_AXI3] [get_bd_intf_pins CC1200_RSSI_3/S_AXI]
+
+  # Create port connections
+  connect_bd_net -net gpio_io_i1_1 [get_bd_pins gpio_io_i1] [get_bd_pins CC1200_RSSI_1/gpio_io_i]
+  connect_bd_net -net gpio_io_i2_1 [get_bd_pins gpio_io_i2] [get_bd_pins CC1200_RSSI_2/gpio_io_i]
+  connect_bd_net -net gpio_io_i3_1 [get_bd_pins gpio_io_i3] [get_bd_pins CC1200_RSSI_3/gpio_io_i]
+  connect_bd_net -net gpio_io_i_1 [get_bd_pins gpio_io_i] [get_bd_pins CC1200_RSSI_0/gpio_io_i]
+  connect_bd_net -net s_axi_aclk_1 [get_bd_pins s_axi_aclk] [get_bd_pins CC1200_RSSI_0/s_axi_aclk] [get_bd_pins CC1200_RSSI_1/s_axi_aclk] [get_bd_pins CC1200_RSSI_2/s_axi_aclk] [get_bd_pins CC1200_RSSI_3/s_axi_aclk]
+  connect_bd_net -net s_axi_aresetn_1 [get_bd_pins s_axi_aresetn] [get_bd_pins CC1200_RSSI_0/s_axi_aresetn] [get_bd_pins CC1200_RSSI_1/s_axi_aresetn] [get_bd_pins CC1200_RSSI_2/s_axi_aresetn] [get_bd_pins CC1200_RSSI_3/s_axi_aresetn]
+
+  # Restore current instance
+  current_bd_instance $oldCurInst
+}
+
 # Hierarchical cell: HEIR_CC1200_REG_OUT
 proc create_hier_cell_HEIR_CC1200_REG_OUT { parentCell nameHier } {
 
@@ -1142,6 +1244,14 @@ proc create_hier_cell_HEIR_ZQ2REG { parentCell nameHier } {
 
   create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI16
 
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI17
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI18
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI19
+
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXI20
+
 
   # Create pins
   create_bd_pin -dir I -from 0 -to 0 CC1200_GPIO_0_0
@@ -1172,6 +1282,10 @@ proc create_hier_cell_HEIR_ZQ2REG { parentCell nameHier } {
   create_bd_pin -dir I -from 23 -to 0 gpio_io_i1
   create_bd_pin -dir I -from 23 -to 0 gpio_io_i2
   create_bd_pin -dir I -from 23 -to 0 gpio_io_i3
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i4
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i5
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i6
+  create_bd_pin -dir I -from 11 -to 0 gpio_io_i7
   create_bd_pin -dir O -from 23 -to 0 gpio_io_o
   create_bd_pin -dir O -from 23 -to 0 gpio_io_o1
   create_bd_pin -dir O -from 23 -to 0 gpio_io_o2
@@ -1203,6 +1317,9 @@ proc create_hier_cell_HEIR_ZQ2REG { parentCell nameHier } {
   # Create instance: HEIR_CC1200_REG_OUT
   create_hier_cell_HEIR_CC1200_REG_OUT $hier_obj HEIR_CC1200_REG_OUT
 
+  # Create instance: HEIR_CC1200_RSSI
+  create_hier_cell_HEIR_CC1200_RSSI $hier_obj HEIR_CC1200_RSSI
+
   # Create instance: HEIR_CC1200_RST
   create_hier_cell_HEIR_CC1200_RST $hier_obj HEIR_CC1200_RST
 
@@ -1217,6 +1334,10 @@ proc create_hier_cell_HEIR_ZQ2REG { parentCell nameHier } {
   # Create interface connections
   connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins S_AXI15] [get_bd_intf_pins CC1200_FIFO_TH/S_AXI]
   connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins S_AXI16] [get_bd_intf_pins UPSAMPLE_FACTOR/S_AXI]
+  connect_bd_intf_net -intf_net Conn3 [get_bd_intf_pins S_AXI17] [get_bd_intf_pins HEIR_CC1200_RSSI/S_AXI]
+  connect_bd_intf_net -intf_net Conn4 [get_bd_intf_pins S_AXI18] [get_bd_intf_pins HEIR_CC1200_RSSI/S_AXI1]
+  connect_bd_intf_net -intf_net Conn5 [get_bd_intf_pins S_AXI19] [get_bd_intf_pins HEIR_CC1200_RSSI/S_AXI2]
+  connect_bd_intf_net -intf_net Conn6 [get_bd_intf_pins S_AXI20] [get_bd_intf_pins HEIR_CC1200_RSSI/S_AXI3]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M00_AXI [get_bd_intf_pins S_AXI11] [get_bd_intf_pins HEIR_CC1200_GPIO/S_AXI]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M01_AXI [get_bd_intf_pins S_AXI12] [get_bd_intf_pins HEIR_CC1200_GPIO/S_AXI1]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M02_AXI [get_bd_intf_pins S_AXI13] [get_bd_intf_pins HEIR_CC1200_GPIO/S_AXI2]
@@ -1267,9 +1388,13 @@ proc create_hier_cell_HEIR_ZQ2REG { parentCell nameHier } {
   connect_bd_net -net In2_0_2 [get_bd_pins CC1200_GPIO_3_1] [get_bd_pins HEIR_CC1200_GPIO/In2_1]
   connect_bd_net -net In2_0_3 [get_bd_pins CC1200_GPIO_3_2] [get_bd_pins HEIR_CC1200_GPIO/In2_2]
   connect_bd_net -net In2_0_4 [get_bd_pins CC1200_GPIO_3_3] [get_bd_pins HEIR_CC1200_GPIO/In2_3]
-  connect_bd_net -net PLL_Clk_100MHz [get_bd_pins s_axi_aclk] [get_bd_pins CC1200_FIFO_TH/s_axi_aclk] [get_bd_pins HEIR_CC1200_GPIO/s_axi_aclk] [get_bd_pins HEIR_CC1200_READY/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_CS/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_IN/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_OUT/s_axi_aclk] [get_bd_pins HEIR_CC1200_RST/s_axi_aclk] [get_bd_pins UPSAMPLE_FACTOR/s_axi_aclk]
-  connect_bd_net -net RST_100M_peripheral_aresetn [get_bd_pins s_axi_aresetn] [get_bd_pins CC1200_FIFO_TH/s_axi_aresetn] [get_bd_pins HEIR_CC1200_GPIO/s_axi_aresetn] [get_bd_pins HEIR_CC1200_READY/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_CS/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_IN/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_OUT/s_axi_aresetn] [get_bd_pins HEIR_CC1200_RST/s_axi_aresetn] [get_bd_pins UPSAMPLE_FACTOR/s_axi_aresetn]
+  connect_bd_net -net PLL_Clk_100MHz [get_bd_pins s_axi_aclk] [get_bd_pins CC1200_FIFO_TH/s_axi_aclk] [get_bd_pins HEIR_CC1200_GPIO/s_axi_aclk] [get_bd_pins HEIR_CC1200_READY/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_CS/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_IN/s_axi_aclk] [get_bd_pins HEIR_CC1200_REG_OUT/s_axi_aclk] [get_bd_pins HEIR_CC1200_RSSI/s_axi_aclk] [get_bd_pins HEIR_CC1200_RST/s_axi_aclk] [get_bd_pins UPSAMPLE_FACTOR/s_axi_aclk]
+  connect_bd_net -net RST_100M_peripheral_aresetn [get_bd_pins s_axi_aresetn] [get_bd_pins CC1200_FIFO_TH/s_axi_aresetn] [get_bd_pins HEIR_CC1200_GPIO/s_axi_aresetn] [get_bd_pins HEIR_CC1200_READY/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_CS/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_IN/s_axi_aresetn] [get_bd_pins HEIR_CC1200_REG_OUT/s_axi_aresetn] [get_bd_pins HEIR_CC1200_RSSI/s_axi_aresetn] [get_bd_pins HEIR_CC1200_RST/s_axi_aresetn] [get_bd_pins UPSAMPLE_FACTOR/s_axi_aresetn]
   connect_bd_net -net UPSAMPLE_FACTOR_gpio_io_o [get_bd_pins gpio_io_o5] [get_bd_pins UPSAMPLE_FACTOR/gpio_io_o]
+  connect_bd_net -net gpio_io_i1_1 [get_bd_pins gpio_io_i5] [get_bd_pins HEIR_CC1200_RSSI/gpio_io_i1]
+  connect_bd_net -net gpio_io_i2_1 [get_bd_pins gpio_io_i6] [get_bd_pins HEIR_CC1200_RSSI/gpio_io_i2]
+  connect_bd_net -net gpio_io_i3_1 [get_bd_pins gpio_io_i7] [get_bd_pins HEIR_CC1200_RSSI/gpio_io_i3]
+  connect_bd_net -net gpio_io_i_1 [get_bd_pins gpio_io_i4] [get_bd_pins HEIR_CC1200_RSSI/gpio_io_i]
 
   # Restore current instance
   current_bd_instance $oldCurInst
@@ -1868,7 +1993,7 @@ proc create_root_design { parentCell } {
   # Create instance: axi_crossbar_0, and set properties
   set axi_crossbar_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_crossbar:2.1 axi_crossbar_0 ]
   set_property -dict [ list \
-   CONFIG.NUM_MI {5} \
+   CONFIG.NUM_MI {9} \
  ] $axi_crossbar_0
 
   # Create instance: jtag_axi_0, and set properties
@@ -2261,6 +2386,10 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net axi_crossbar_0_M01_AXI [get_bd_intf_pins SW_TIME_OUT/S_AXI] [get_bd_intf_pins axi_crossbar_0/M01_AXI]
   connect_bd_intf_net -intf_net axi_crossbar_0_M03_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI15] [get_bd_intf_pins axi_crossbar_0/M03_AXI]
   connect_bd_intf_net -intf_net axi_crossbar_0_M04_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI16] [get_bd_intf_pins axi_crossbar_0/M04_AXI]
+  connect_bd_intf_net -intf_net axi_crossbar_0_M05_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI17] [get_bd_intf_pins axi_crossbar_0/M05_AXI]
+  connect_bd_intf_net -intf_net axi_crossbar_0_M06_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI18] [get_bd_intf_pins axi_crossbar_0/M06_AXI]
+  connect_bd_intf_net -intf_net axi_crossbar_0_M07_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI19] [get_bd_intf_pins axi_crossbar_0/M07_AXI]
+  connect_bd_intf_net -intf_net axi_crossbar_0_M08_AXI [get_bd_intf_pins HEIR_ZQ2REG/S_AXI20] [get_bd_intf_pins axi_crossbar_0/M08_AXI]
   connect_bd_intf_net -intf_net jtag_axi_0_M_AXI [get_bd_intf_pins jtag_axi_0/M_AXI] [get_bd_intf_pins ps7_0_axi_periph/S01_AXI]
   connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
@@ -2368,6 +2497,10 @@ proc create_root_design { parentCell } {
   connect_bd_net -net VIDEO_BUF_0_HSYNC_OUT [get_bd_pins HEIR_VIDEO/vid_pHSync] [get_bd_pins VIDEO_BUF_0/HSYNC_OUT]
   connect_bd_net -net VIDEO_BUF_0_RGB_OUT [get_bd_pins HEIR_VIDEO/vid_pData] [get_bd_pins VIDEO_BUF_0/RGB_OUT]
   connect_bd_net -net VIDEO_BUF_0_VSYNC_OUT [get_bd_pins HEIR_VIDEO/vid_pVSync] [get_bd_pins VIDEO_BUF_0/VSYNC_OUT]
+  connect_bd_net -net VIDEO_BUF_0_rssi_acc_0 [get_bd_pins HEIR_ZQ2REG/gpio_io_i4] [get_bd_pins VIDEO_BUF_0/rssi_acc_0]
+  connect_bd_net -net VIDEO_BUF_0_rssi_acc_1 [get_bd_pins HEIR_ZQ2REG/gpio_io_i5] [get_bd_pins VIDEO_BUF_0/rssi_acc_1]
+  connect_bd_net -net VIDEO_BUF_0_rssi_acc_2 [get_bd_pins HEIR_ZQ2REG/gpio_io_i6] [get_bd_pins VIDEO_BUF_0/rssi_acc_2]
+  connect_bd_net -net VIDEO_BUF_0_rssi_acc_3 [get_bd_pins HEIR_ZQ2REG/gpio_io_i7] [get_bd_pins VIDEO_BUF_0/rssi_acc_3]
   connect_bd_net -net VTC_CLK_ENB_CONST_dout [get_bd_pins HEIR_VIDEO/gen_clken] [get_bd_pins VTC_CLK_ENB_CONST/dout]
   connect_bd_net -net processing_system7_0_FCLK_CLK0 [get_bd_pins HEIR_VIDEO/SerialClk] [get_bd_pins PLL/clk_in1] [get_bd_pins processing_system7_0/FCLK_CLK0]
   connect_bd_net -net processing_system7_0_FCLK_RESET0_N [get_bd_pins RST_100M/aux_reset_in] [get_bd_pins RST_25M/aux_reset_in] [get_bd_pins processing_system7_0/FCLK_RESET0_N]
@@ -2392,6 +2525,10 @@ proc create_root_design { parentCell } {
   assign_bd_address -offset 0x412B0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_1/S_AXI/Reg] -force
   assign_bd_address -offset 0x412C0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_2/S_AXI/Reg] -force
   assign_bd_address -offset 0x412D0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_3/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41340000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_0/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41350000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_1/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41360000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_2/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41370000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_3/S_AXI/Reg] -force
   assign_bd_address -offset 0x412E0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RST/CC1200_RST/S_AXI/Reg] -force
   assign_bd_address -offset 0x412F0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs HEIR_LEDS/LEDS/S_AXI/Reg] -force
   assign_bd_address -offset 0x41310000 -range 0x00010000 -target_address_space [get_bd_addr_spaces jtag_axi_0/Data] [get_bd_addr_segs MIN_FRAME_SW_DETECTED/S_AXI/Reg] -force
@@ -2412,6 +2549,10 @@ proc create_root_design { parentCell } {
   assign_bd_address -offset 0x412B0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_1/S_AXI/Reg] -force
   assign_bd_address -offset 0x412C0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_2/S_AXI/Reg] -force
   assign_bd_address -offset 0x412D0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_REG_OUT/CC1200_REG_OUT_3/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41340000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_0/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41350000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_1/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41360000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_2/S_AXI/Reg] -force
+  assign_bd_address -offset 0x41370000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RSSI/CC1200_RSSI_3/S_AXI/Reg] -force
   assign_bd_address -offset 0x412E0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_ZQ2REG/HEIR_CC1200_RST/CC1200_RST/S_AXI/Reg] -force
   assign_bd_address -offset 0x412F0000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs HEIR_LEDS/LEDS/S_AXI/Reg] -force
   assign_bd_address -offset 0x41310000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs MIN_FRAME_SW_DETECTED/S_AXI/Reg] -force
